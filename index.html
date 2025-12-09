@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>配列予測ツール（レスポンシブ版・右B自動非表示対応）</title>
+<style>
+  :root{
+    --gap:12px;
+    --card-bg:#ffffff;
+    --card-border:#e6e6e6;
+    --muted:#666;
+  }
+  body{
+    font-family: "Yu Gothic","Hiragino Kaku Gothic ProN","Noto Sans JP",system-ui,Arial,sans-serif;
+    margin:0;
+    padding:18px;
+    background:#fafafa;
+    color:#111;
+  }
+  h1{font-size:20px;margin:0 0 10px}
+  .top {max-width:1200px;margin:0 auto;}
+  .panel{background:var(--card-bg);border:1px solid var(--card-border);border-radius:10px;padding:14px;margin-bottom:14px;box-shadow:0 1px 2px rgba(0,0,0,0.03)}
+  label{display:block;margin:6px 0;font-weight:700;font-size:14px}
+  select{padding:8px;font-size:14px;border:1px solid #ddd;border-radius:6px;background:#fff;width:100%}
+  button{padding:10px 14px;font-size:15px;border-radius:8px;border:0;background:#1976d2;color:#fff;cursor:pointer}
+  button.secondary{background:#666;margin-left:8px}
+  .controls{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+  .inputs{display:flex;gap:20px;flex-wrap:wrap}
+  .col{min-width:200px;flex:1}
+  .small{color:var(--muted);font-size:13px}
+  /* output area: responsive grid */
+  .outputs-wrap{max-width:1200px;margin:0 auto}
+  .outputs{display:grid;grid-template-columns:1fr;gap:12px}
+  .out-card{background:#fff;border:1px solid var(--card-border);border-radius:8px;padding:10px;min-height:160px;overflow:auto}
+  .out-title{font-weight:700;margin-bottom:8px}
+  .out-list{white-space:pre; font-family:inherit; font-size:14px; line-height:1.6}
+  /* wide screens: 3 columns */
+  @media (min-width:900px){
+    .outputs{grid-template-columns: repeat(3, 1fr);}
+  }
+  /* smaller controls layout */
+  @media (max-width:520px){
+    .col{min-width:140px}
+    button{width:100%}
+    .controls{flex-direction:column;align-items:stretch}
+    .inputs{flex-direction:column}
+  }
+  .out-card::-webkit-scrollbar{height:8px}
+  .out-card::-webkit-scrollbar-thumb{background:#dedede;border-radius:8px}
+</style>
+</head>
+<body>
+  <div class="top">
+    <h1>配列予測ツール（レスポンシブ・右B自動非表示対応）</h1>
+
+    <div class="panel">
+      <p class="small">地域を選択 → 左/右の「奥から1〜3」を選ぶ（空欄可）→ 「配列を予測する」。右側入力が左15内に含まれるときはパターンBを非表示にします。</p>
+
+      <label>① 地域選択</label>
+      <div class="controls" style="margin-bottom:8px">
+        <div style="width:220px">
+          <select id="region">
+            <option value="west">西日本</option>
+            <option value="east">東日本</option>
+          </select>
+        </div>
+        <div class="small">プルダウンは番号順（01→25）で表示されます</div>
+      </div>
+
+      <label>② 入力（奥 → 手前）</label>
+      <div class="inputs">
+        <div class="col">
+          <div style="font-weight:700;margin-bottom:6px">左列</div>
+          <label>奥から1<select id="L1"></select></label>
+          <label>奥から2<select id="L2"></select></label>
+          <label>奥から3<select id="L3"></select></label>
+        </div>
+
+        <div class="col">
+          <div style="font-weight:700;margin-bottom:6px">右列（任意）</div>
+          <label>奥から1<select id="R1"></select></label>
+          <label>奥から2<select id="R2"></select></label>
+          <label>奥から3<select id="R3"></select></label>
+        </div>
+      </div>
+
+      <div style="margin-top:12px">
+        <button id="predictBtn">配列を予測する</button>
+        <button id="resetBtn" class="secondary">リセット</button>
+      </div>
+    </div>
+
+    <!-- outputs -->
+    <div class="outputs-wrap">
+      <div class="outputs" id="outputsGrid">
+        <div class="out-card" id="cardL">
+          <div class="out-title">左15（基準）</div>
+          <div id="outL" class="out-list"></div>
+        </div>
+
+        <div class="out-card" id="cardRA">
+          <div class="out-title">右15（パターンA：左の続き）</div>
+          <div id="outRA" class="out-list"></div>
+        </div>
+
+        <div class="out-card" id="cardRB">
+          <div class="out-title">右15（パターンB：基準の前方向）</div>
+          <div id="outRB" class="out-list"></div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+<script>
+// ===== Data (same as before) =====
+const listWest = [
+"01 オアシス天如","02 舞妓十字架天使","03 なにわゼウス","04 シャーマンカーン","05 愛然かぐや",
+"06 魔僧弁慶","07 キングラビット","08 スサノオロ土","09 桃太郎天子","10 ヘラクライスト",
+"11 始祖ジュラ","12 阿波マリア","13 ノアフォーム","14 スーパーデビル","15 聖龍馬フェニックス",
+"16 天神さま","17 魔肖ネロ","18 ヘルプさん","19 ヘッドロココ","20 ヤマト王子",
+"21 ひょっと子助","22 ブラックゼウス","23 騎神アリババ","24 ご当地ゼウス","25 ご当地クライスト"
+];
+
+const listEast = [
+"01 聖フェニックス","02 ニンニク満助","03 魔スターP","04 武将ゼウス","05 なまはげデビル",
+"06 花咲か仙人","07 魯神フッド","08 黄門天人","09 ポンプ大帝","10 明星クィーン",
+"11 シャーマンカーン","12 天子男ジャック","13 アーバンマリア","14 ヤマト王子","15 聖母マンマ",
+"16 ダム神","17 レスQ天女","18 ゴーストアリババ","19 魔肖ネロ","20 オーロラ王神",
+"21 さらっち","22 始祖ジュラ","23 シャチホコクライスト","24 縁縄如天","25 ご当地ロココ"
+];
+
+// A/C arrays (search arrays)
+const arrWest = [
+"12 阿波マリア","07 キングラビット","01 オアシス天如","18 ヘルプさん","16 天神さま",
+"03 なにわゼウス","23 騎神アリババ","24 ご当地ゼウス","01 オアシス天如","22 ブラックゼウス",
+"19 ヘッドロココ","11 始祖ジュラ","03 なにわゼウス","17 魔肖ネロ","08 スサノオロ土",
+"12 阿波マリア","20 ヤマト王子","10 ヘラクライスト","13 ノアフォーム","05 愛然かぐや",
+"11 始祖ジュラ","15 聖龍馬フェニックス","17 魔肖ネロ","14 スーパーデビル","25 ご当地クライスト",
+"06 魔僧弁慶","09 桃太郎天子","16 天神さま","23 騎神アリババ","07 キングラビット",
+"15 聖龍馬フェニックス","18 ヘルプさん","13 ノアフォーム","02 舞妓十字架天使","14 スーパーデビル",
+"21 ひょっと子助","09 桃太郎天子","04 シャーマンカーン","22 ブラックゼウス","19 ヘッドロココ",
+"02 舞妓十字架天使","21 ひょっと子助","10 ヘラクライスト","05 愛然かぐや","20 ヤマト王子",
+"04 シャーマンカーン","08 スサノオロ土","06 魔僧弁慶"
+];
+
+const arrEast = [
+"19 魔肖ネロ","02 ニンニク満助","10 明星クィーン","21 さらっち","05 なまはげデビル",
+"20 オーロラ王神","04 武将ゼウス","06 花咲か仙人","12 天子男ジャック","08 黄門天人",
+"07 魯神フッド","01 聖フェニックス","18 ゴーストアリババ","16 ダム神","03 魔スターP",
+"23 シャチホコクライスト","24 縁縄如天","01 聖フェニックス","22 始祖ジュラ","19 魔肖ネロ",
+"11 シャーマンカーン","03 魔スターP","17 レスQ天女","12 天子男ジャック","08 黄門天人",
+"20 オーロラ王神","10 明星クィーン","13 アーバンマリア","05 なまはげデビル","11 シャーマンカーン",
+"15 聖母マンマ","17 レスQ天女","14 ヤマト王子","25 ご当地ロココ","06 花咲か仙人",
+"16 ダム神","09 ポンプ大帝","23 シャチホコクライスト","07 魯神フッド","15 聖母マンマ",
+"18 ゴーストアリババ","13 アーバンマリア","02 ニンニク満助","14 ヤマト王子","21 さらっち",
+"09 ポンプ大帝","04 武将ゼウス","22 始祖ジュラ"
+];
+
+// Utilities
+function nameOnly(s){ return s ? s.replace(/^\d+\s*/,'').trim() : ''; }
+function pad2(n){ return String(n).padStart(2,'0'); }
+
+// DOM
+const regionSel = document.getElementById('region');
+const selectIds = ['L1','L2','L3','R1','R2','R3'];
+const selects = selectIds.map(id => document.getElementById(id));
+const [L1,L2,L3,R1,R2,R3] = selects;
+const outL = document.getElementById('outL');
+const outRA = document.getElementById('outRA');
+const outRB = document.getElementById('outRB');
+const outputsGrid = document.getElementById('outputsGrid');
+const cardRB = document.getElementById('cardRB');
+const predictBtn = document.getElementById('predictBtn');
+const resetBtn = document.getElementById('resetBtn');
+
+// Fill dropdowns
+function fillDropdowns(){
+  const list = (regionSel.value === 'west') ? listWest : listEast;
+  selects.forEach(sel=>{
+    sel.innerHTML = '';
+    const blank = document.createElement('option'); blank.value=''; blank.textContent='（空欄）';
+    sel.appendChild(blank);
+    list.forEach(item=>{
+      const o = document.createElement('option');
+      o.value = item; o.textContent = item;
+      sel.appendChild(o);
+    });
+  });
+}
+
+// findStartIndex (non-contiguous ordered match, using all inputs L1..R3)
+function findStartIndex(arr, inputs){
+  const n = arr.length;
+  const arrNames = arr.map(nameOnly);
+  for(let s=0; s<n; s++){
+    let pos = s;
+    let firstMatchedIndex = -1;
+    let ok = true;
+    for(let k=0;k<inputs.length;k++){
+      const target = nameOnly(inputs[k]);
+      if(!target){ ok=false; break; }
+      let found=false;
+      for(let step=0; step<n; step++){
+        const idx = (pos + step) % n;
+        if(arrNames[idx] === target){
+          if(firstMatchedIndex === -1) firstMatchedIndex = idx;
+          pos = (idx + 1) % n;
+          found = true;
+          break;
+        }
+      }
+      if(!found){ ok=false; break; }
+    }
+    if(ok && firstMatchedIndex !== -1) return firstMatchedIndex;
+  }
+  return -1;
+}
+
+// build down 15
+function buildDown(arr,start){
+  const out=[];
+  for(let i=0;i<15;i++) out.push(arr[(start + i) % arr.length]);
+  return out;
+}
+// build before (start-15 .. start-1) in 奥→手前 order
+function buildBefore(arr,start){
+  const out=[];
+  for(let i=15;i>=1;i--){
+    let idx = (start - i) % arr.length;
+    if(idx < 0) idx += arr.length;
+    out.push(arr[idx]);
+  }
+  return out;
+}
+
+// main predict
+function predict(){
+  const arr = (regionSel.value === 'west') ? arrWest : arrEast;
+  const inputs = [L1.value,L2.value,L3.value,R1.value,R2.value,R3.value].filter(v=>v && v.trim() !== '');
+  if(inputs.length === 0){ alert('左または右のいずれか1つ以上を選択してください（基準になります）。'); return; }
+
+  const start = findStartIndex(arr, inputs);
+  if(start === -1){
+    outL.textContent = '一致する配列は見つかりませんでした。';
+    outRA.textContent = ''; outRB.textContent = '';
+    // ensure RB visible state reset
+    cardRB.style.display = '';
+    outputsGrid.style.gridTemplateColumns = '';
+    return;
+  }
+
+  const left15 = buildDown(arr,start);
+  const next = (start + 15) % arr.length;
+  const rightA = buildDown(arr,next);
+  const rightB = buildBefore(arr,start);
+
+  // check if any right-input matches left15 (by nameOnly)
+  const leftNames = left15.map(nameOnly);
+  const rightInputs = [R1.value,R2.value,R3.value].filter(v=>v && v.trim() !== '');
+  let anyRightHitLeft = false;
+  for(const r of rightInputs){
+    const rn = nameOnly(r);
+    if(leftNames.includes(rn)){ anyRightHitLeft = true; break; }
+  }
+
+  // If anyRightHitLeft true -> hide rightB and adjust layout to two columns
+  if(anyRightHitLeft){
+    cardRB.style.display = 'none';
+    // set grid to 2 columns on wide screens
+    outputsGrid.style.gridTemplateColumns = window.innerWidth >= 900 ? 'repeat(2,1fr)' : '';
+  } else {
+    cardRB.style.display = '';
+    outputsGrid.style.gridTemplateColumns = window.innerWidth >= 900 ? 'repeat(3,1fr)' : '';
+  }
+
+  outL.textContent  = left15.map((v,i)=>`${pad2(i+1)} ${v}`).join('\n');
+  outRA.textContent = rightA.map((v,i)=>`${pad2(i+1)} ${v}`).join('\n');
+  outRB.textContent = rightB.map((v,i)=>`${pad2(i+1)} ${v}`).join('\n');
+}
+
+// reset
+function resetAll(){
+  selects.forEach(s=>s.value='');
+  outL.textContent = outRA.textContent = outRB.textContent = '';
+  cardRB.style.display = '';
+  outputsGrid.style.gridTemplateColumns = '';
+}
+
+// events
+regionSel.addEventListener('change', fillDropdowns);
+predictBtn.addEventListener('click', predict);
+resetBtn.addEventListener('click', resetAll);
+
+// initial
+fillDropdowns();
+</script>
+</body>
+</html>
